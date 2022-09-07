@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "Build submission executable",
+      "setup": "",
+      "run": "make submission && if [ -f troons ]; then echo \"passed - file 'troons' exists\"; return 0; else echo \"failed - file 'troons' does not exist!\"; return 1; fi",
+      "input": "",
+      "output": "",
+      "comparison": "included",
+      "timeout": 10,
+      "points": null
+    }
+  ]
+}
