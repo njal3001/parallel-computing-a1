@@ -2,11 +2,39 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 using std::string;
 using std::vector;
 
 using adjacency_matrix = std::vector<std::vector<size_t>>;
+
+const size_t MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK = 2;
+
+enum Color {Green, Yellow, Blue};
+
+struct Train
+{
+  size_t id;
+  Color color;
+
+  Train(size_t id, Color color) : id(std::move(id)), color(std::move(color)) {
+
+  }
+  
+};
+
+struct Station {
+  size_t id;
+  string name;
+  size_t popularity;
+
+  Station(string name, size_t popularity) : id(std::move(id)), name(std::move(name)), popularity(std::move(popularity)) {
+
+  }
+};
+
+
 
 void simulate(size_t num_stations,
               const vector<string>& station_names,
@@ -23,7 +51,7 @@ void simulate(size_t num_stations,
    * not.
    **/
 
-  // #ifdef DEBUG
+  #ifdef DEBUG
   std::cout << num_stations << '\n';
 
   for (size_t i{}; i < num_stations; ++i) {
@@ -59,7 +87,64 @@ void simulate(size_t num_stations,
   std::cout << num_blue_trains << '\n';
 
   std::cout << num_lines << '\n';
-  // #endif
+  #endif
+
+  vector<Station> stations;
+  for (size_t i{}; i < num_stations; ++i) {
+    stations.emplace_back(i, station_names[i],  popularities[i]);
+    std::cout << station_names[i] << ' ' << popularities[i] << ' ';
+  }
+
+  vector<Train> trains;
+
+  size_t next_train_id = 0;
+  for (size_t i = 0; i < ticks; i++) {
+    size_t g = 0, y = 0, b = 0;
+
+    while (g < MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK && num_green_trains > 0) {
+      trains.emplace_back(next_train_id, Color::Green);
+      next_train_id++;
+      g++;
+      num_green_trains--;
+    }
+
+    while (y < MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK && num_yellow_trains > 0) {
+      trains.emplace_back(next_train_id, Color::Yellow);
+      next_train_id++;
+      y++;
+      num_yellow_trains--;
+    }
+
+    while (b < MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK && num_blue_trains > 0) {
+      trains.emplace_back(next_train_id, Color::Blue);
+      next_train_id++;
+      b++;
+      num_blue_trains--;
+    }
+
+  }
+
+  for (auto train: trains) {
+    std::cout << train.id;
+    switch (train.color) {
+    case Color::Green:
+      std::cout << 'g';
+      break;
+    
+    case Color::Yellow:
+      std::cout << 'y';
+      break;
+    
+    case Color::Blue:
+      std::cout << 'b';
+      break;
+    
+    default:
+      break;
+    }
+    std::cout << '\n';
+  }
+  
 }
 
 vector<string> extract_station_names(string& line) {
