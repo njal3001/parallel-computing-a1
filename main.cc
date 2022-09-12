@@ -2,11 +2,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "network.h"
 
 using std::string;
 using std::vector;
-
-using adjacency_matrix = std::vector<std::vector<size_t>>;
 
 void simulate(size_t num_stations,
               const vector<string>& station_names,
@@ -23,10 +22,10 @@ void simulate(size_t num_stations,
    * not.
    **/
 
-  // #ifdef DEBUG
+  #ifdef DEBUG
   std::cout << num_stations << '\n';
 
-  for (size_t i{}; i < num_stations; ++i) {
+  for (size_t i; i < num_stations; ++i) {
     std::cout << station_names[i] << ' ' << popularities[i] << ' ';
   }
   std::cout << '\n';
@@ -59,7 +58,14 @@ void simulate(size_t num_stations,
   std::cout << num_blue_trains << '\n';
 
   std::cout << num_lines << '\n';
-  // #endif
+  #endif
+
+  Network network = Network(num_stations, station_names, popularities,
+              mat, green_station_names, yellow_station_names,
+              blue_station_names, ticks, num_green_trains, num_yellow_trains,
+              num_blue_trains, num_lines);
+
+  network.simulate();
 }
 
 vector<string> extract_station_names(string& line) {
