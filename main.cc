@@ -2,72 +2,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <unordered_map>
-#include <set>
-#include <utility>
-#include <queue>
+#include "network.h"
 
 using std::string;
 using std::vector;
-using std::queue;
-using std::unordered_map;
-using std::set;
 using std::make_pair;
-
-using adjacency_matrix = std::vector<std::vector<size_t>>;
-
-const size_t MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK = 2;
-
-enum Color {Green, Yellow, Blue};
-// enum State {Arriving, Load, Wait, Transit};
-
-struct Station {
-  size_t id;
-  string name;
-  size_t popularity;
-};
-
-struct Link {
-  size_t id;
-  string start, end;
-  size_t length;
-  queue<size_t> holding_area{};
-  size_t at_platform = NULL;
-};
-
-using Network = unordered_map<Color, vector<Link>>;
-
-struct Train {
-  size_t id;
-  Color color;
-  size_t remaining_time{};
-  
-  Train(size_t id, Color color) : id(id), color(color) {
-
-  }
-  
-  // void progress() {
-  //   switch (this->state) {
-  //   case Arriving:
-  //     if (this->link.free) {
-  //       this->state = Load;
-  //       this->remaining_time = link.start.popularity;
-  //       this->link.free = false;
-  //     }
-  //     break;
-  //   case Load:
-  //     if (this->remaining_time == 0) {
-  //       this->state = Wait;
-  //     } else {
-  //       this->remaining_time -= 1;
-  //     }
-  //     break;
-  //   case Wait
-  //   default:
-  //     break;
-  //   }
-  // }
-};
 
 void simulate(size_t num_stations,
               const vector<string>& station_names,
@@ -87,7 +26,7 @@ void simulate(size_t num_stations,
   #ifdef DEBUG
   std::cout << num_stations << '\n';
 
-  for (size_t i{}; i < num_stations; ++i) {
+  for (size_t i; i < num_stations; ++i) {
     std::cout << station_names[i] << ' ' << popularities[i] << ' ';
   }
   std::cout << '\n';
@@ -122,77 +61,12 @@ void simulate(size_t num_stations,
   std::cout << num_lines << '\n';
   #endif
 
-  unordered_map<string, Station> stations;
-  for (size_t i{}; i < num_stations; ++i) {
-    Station station{i, station_names[i], popularities[i]};
-    stations.emplace(make_pair(station_names[i], station));
-  }
+  Network network = Network(num_stations, station_names, popularities,
+              mat, green_station_names, yellow_station_names,
+              blue_station_names, ticks, num_green_trains, num_yellow_trains,
+              num_blue_trains, num_lines);
 
-  Network network{};
-  network.emplace(Green, vector<Link>());
-  network.emplace(Yellow, vector<Link>());
-  network.emplace(Blue, vector<Link>());
-
-  unordered_map<std::pair<size_t, size_t>> all_links;
-
-  for (size_t i = 0; i < green_station_names.size() - 1; i++) {
-    auto fi = stations[green_station_names[i]];
-    auto se = stations[green_station_names[i + 1]];
-    Link link{fi, se, mat[fi.id][se.id]};
-    Link link{se, fi, mat[se.id][fi.id]};
-  }
-  
-
-  vector<Train> trains;
-
-  size_t next_train_id = 0;
-  for (size_t i = 0; i < ticks; i++) {
-    size_t g = 0, y = 0, b = 0;
-
-    while (g < MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK && num_green_trains > 0) {
-      trains.emplace_back(next_train_id, Color::Green);
-      next_train_id++;
-      g++;
-      num_green_trains--;
-    }
-
-    while (y < MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK && num_yellow_trains > 0) {
-      trains.emplace_back(next_train_id, Color::Yellow);
-      next_train_id++;
-      y++;
-      num_yellow_trains--;
-    }
-
-    while (b < MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK && num_blue_trains > 0) {
-      trains.emplace_back(next_train_id, Color::Blue);
-      next_train_id++;
-      b++;
-      num_blue_trains--;
-    }
-
-  }
-
-  for (auto train: trains) {
-    std::cout << train.id;
-    switch (train.color) {
-    case Color::Green:
-      std::cout << 'g';
-      break;
-    
-    case Color::Yellow:
-      std::cout << 'y';
-      break;
-    
-    case Color::Blue:
-      std::cout << 'b';
-      break;
-    
-    default:
-      break;
-    }
-    std::cout << '\n';
-  }
-  
+  network.simulate();
 }
 
 vector<string> extract_station_names(string& line) {
