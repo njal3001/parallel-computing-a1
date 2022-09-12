@@ -2,39 +2,72 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
+#include <unordered_map>
+#include <set>
+#include <utility>
+#include <queue>
 
 using std::string;
 using std::vector;
+using std::queue;
+using std::unordered_map;
+using std::set;
+using std::make_pair;
 
 using adjacency_matrix = std::vector<std::vector<size_t>>;
 
 const size_t MAX_TRAINS_SPAWNED_PER_LINE_ONE_TICK = 2;
 
 enum Color {Green, Yellow, Blue};
-
-struct Train
-{
-  size_t id;
-  Color color;
-
-  Train(size_t id, Color color) : id(std::move(id)), color(std::move(color)) {
-
-  }
-  
-};
+// enum State {Arriving, Load, Wait, Transit};
 
 struct Station {
   size_t id;
   string name;
   size_t popularity;
-
-  Station(string name, size_t popularity) : id(std::move(id)), name(std::move(name)), popularity(std::move(popularity)) {
-
-  }
 };
 
+struct Link {
+  size_t id;
+  string start, end;
+  size_t length;
+  queue<size_t> holding_area{};
+  size_t at_platform = NULL;
+};
 
+using Network = unordered_map<Color, vector<Link>>;
+
+struct Train {
+  size_t id;
+  Color color;
+  size_t remaining_time{};
+  
+  Train(size_t id, Color color) : id(id), color(color) {
+
+  }
+  
+  // void progress() {
+  //   switch (this->state) {
+  //   case Arriving:
+  //     if (this->link.free) {
+  //       this->state = Load;
+  //       this->remaining_time = link.start.popularity;
+  //       this->link.free = false;
+  //     }
+  //     break;
+  //   case Load:
+  //     if (this->remaining_time == 0) {
+  //       this->state = Wait;
+  //     } else {
+  //       this->remaining_time -= 1;
+  //     }
+  //     break;
+  //   case Wait
+  //   default:
+  //     break;
+  //   }
+  // }
+};
 
 void simulate(size_t num_stations,
               const vector<string>& station_names,
@@ -89,11 +122,26 @@ void simulate(size_t num_stations,
   std::cout << num_lines << '\n';
   #endif
 
-  vector<Station> stations;
+  unordered_map<string, Station> stations;
   for (size_t i{}; i < num_stations; ++i) {
-    stations.emplace_back(i, station_names[i],  popularities[i]);
-    std::cout << station_names[i] << ' ' << popularities[i] << ' ';
+    Station station{i, station_names[i], popularities[i]};
+    stations.emplace(make_pair(station_names[i], station));
   }
+
+  Network network{};
+  network.emplace(Green, vector<Link>());
+  network.emplace(Yellow, vector<Link>());
+  network.emplace(Blue, vector<Link>());
+
+  unordered_map<std::pair<size_t, size_t>> all_links;
+
+  for (size_t i = 0; i < green_station_names.size() - 1; i++) {
+    auto fi = stations[green_station_names[i]];
+    auto se = stations[green_station_names[i + 1]];
+    Link link{fi, se, mat[fi.id][se.id]};
+    Link link{se, fi, mat[se.id][fi.id]};
+  }
+  
 
   vector<Train> trains;
 
