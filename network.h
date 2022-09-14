@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <deque>
+#include <queue>
 
 using adjacency_matrix = std::vector<std::vector<size_t>>;
 
@@ -54,11 +55,22 @@ struct Troon {
     friend std::ostream& operator<<(std::ostream& os, const Troon::Line& line);
 };
 
+// C++ Priority queue by default is a max heap, so if a->ticks_in_state < b->ticks_in_state,
+// b will be popped out before a
+struct CompareTroon {
+    bool operator()(const Troon* a, const Troon* b) {
+        if (a->ticks_in_state != b->ticks_in_state) {
+            return a->ticks_in_state < b->ticks_in_state;
+        }
+        return a->id > b->id;
+    }
+};
+
 struct Link {
     Station *from;
     Station *to;
     size_t length;
-    std::deque<Troon*> waiting_platform;
+    std::priority_queue<Troon*, std::vector<Troon*>, CompareTroon> waiting_platform{};
     Troon* on_platform;
     Troon* in_transit;
 

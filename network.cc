@@ -1,7 +1,14 @@
 #include "network.h"
 #include <iostream>
+#include <sstream>
 #include <assert.h>
 #include <algorithm>
+
+template <typename T> std::string to_string(const T& value) {
+    std::stringstream os;
+    os << value;
+    return os.str();
+}
 
 Station::Station(size_t id, const std::string& name, size_t popularity) {
     this->id = id;
@@ -64,9 +71,13 @@ std::ostream& operator<<(std::ostream& os, const Link& link) {
     if (link.in_transit) os << *link.in_transit << '\n';
     else os << "None\n";
 
-    if (link.waiting_platform.size()) {
+    std::priority_queue<Troon*, std::vector<Troon*>, CompareTroon> pq{link.waiting_platform};
+
+    if (!pq.empty()) {
         os << "\tWaiting:\n";
-        for (auto waiting : link.waiting_platform) {
+        while (!pq.empty()) {
+            auto waiting = pq.top();
+            pq.pop();
             os << '\t' << *waiting << '\n';
         }
     } else {
@@ -256,7 +267,7 @@ void Network::simulate() {
                 Link *front_link = this->link_matrix[start_station->id][start_next_station->id];
                 assert(front_link);
 
-                front_link->waiting_platform.push_back(&this->troons.back());
+                front_link->waiting_platform.push(&this->troons.back());
 
                 left_to_spawn--;
                 if (left_to_spawn > 0) {
@@ -269,7 +280,7 @@ void Network::simulate() {
                     Link *end_link = this->link_matrix[end_station->id][end_next_station->id];
                     assert(end_link);
 
-                    end_link->waiting_platform.push_back(&this->troons.back());
+                    end_link->waiting_platform.push(&this->troons.back());
 
                     left_to_spawn--;
                 }
@@ -315,12 +326,13 @@ void Network::simulate() {
                 }
 
                 Link *new_link = this->link_matrix[new_from->id][new_to->id];
-                new_link->waiting_platform.push_back(troon);
+                new_link->waiting_platform.push(troon);
 
             }
         }
 
         // Sort waiting area based on time and id
+        /*
         for (auto& link : this->links) {
             std::sort(link.waiting_platform.begin(), link.waiting_platform.end(), [](Troon *troon1, Troon *troon2) {
                 if (troon1->ticks_in_state != troon2->ticks_in_state) {
@@ -330,6 +342,7 @@ void Network::simulate() {
                 return troon1->id < troon2->id;
             });
         }
+        */
 
         // Move from platform to link
         for (auto& link : this->links) {
@@ -358,8 +371,8 @@ void Network::simulate() {
         // Move from watiting area to platform
         for (auto& link : this->links) {
             if (!link.on_platform && !link.waiting_platform.empty()) {
-                Troon* first_troon = link.waiting_platform.front();
-                link.waiting_platform.pop_front();
+                Troon* first_troon = link.waiting_platform.top();
+                link.waiting_platform.pop();
 
                 link.on_platform = first_troon;
                 first_troon->ticks_in_state = 1;
@@ -380,8 +393,18 @@ void Network::simulate() {
         }
 #else
         if (this->ticks - tick <= this->num_lines) {
+            std::vector<std::string> v{};
+            for (auto& troon: troons) {
+                auto s = to_string(troon);
+                v.emplace_back(s);
+            }
+            sort(v.begin(), v.end());
             std::cout << tick << ": ";
-            for (auto& troon : troons) {
+            for (const auto& element: v) {
+                std::cout << element << " ";
+            }
+            
+            /* for (auto& troon : troons) {
                 if (troon.line == Troon::Line::blue)
                     std::cout << troon << " ";
             }
@@ -392,7 +415,7 @@ void Network::simulate() {
             for (auto& troon : troons) {
                 if (troon.line == Troon::Line::yellow)
                     std::cout << troon << " ";
-            }
+            } */
 
             std::cout << '\n';
         }
