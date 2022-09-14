@@ -127,7 +127,12 @@ std::ostream& operator<<(std::ostream& os, const Troon& troon) {
         }
 
         os << "->" << next_station->name;
+    } else if (troon.state == Troon::State::on_platform || troon.state == Troon::State::waiting_transit) {
+        os << "%";
+    } else if (troon.state == Troon::State::waiting_platform) {
+        os << "#";
     }
+    
 
 #ifdef DEBUG
     switch (troon.state) {
@@ -403,7 +408,7 @@ void Network::simulate() {
             for (const auto& element: v) {
                 std::cout << element << " ";
             }
-            
+
             /* for (auto& troon : troons) {
                 if (troon.line == Troon::Line::blue)
                     std::cout << troon << " ";
