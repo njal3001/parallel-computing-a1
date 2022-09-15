@@ -48,7 +48,7 @@ Troon::Troon(size_t id, Direction direction, Line line, const Station *spawn_sta
     this->line = line;
     this->on_station = spawn_station;
     this->state = Troon::State::waiting_platform;
-    this->ticks_in_state = 0;
+    this->state_timestamp = 0;
 }
 
 Link::Link(Station *from, Station *to, size_t length) {
@@ -132,7 +132,7 @@ std::ostream& operator<<(std::ostream& os, const Troon& troon) {
     } else if (troon.state == Troon::State::waiting_platform) {
         os << "#";
     }
-    
+
 
 #ifdef DEBUG
     switch (troon.state) {
@@ -150,7 +150,7 @@ std::ostream& operator<<(std::ostream& os, const Troon& troon) {
             break;
     }
 
-    os << ", t" << troon.ticks_in_state << ", ";
+    os << ", ts" << troon.state_timestamp << ", ";
 
     if (troon.direction == Troon::Direction::forward) {
         os << "forward)";
@@ -258,7 +258,7 @@ Network::Network(size_t num_stations,
 void Network::simulate() {
     for (size_t tick = 0; tick < this->ticks; tick++) {
         // Spawn troons
-        auto spawn_troons = [this](Troon::Line line) {
+        auto spawn_troons = [this, tick](Troon::Line line) {
             size_t left_to_spawn = this->num_trains_to_spawn[line];
 
             if (left_to_spawn > 0) {
@@ -272,6 +272,7 @@ void Network::simulate() {
                 Link *front_link = this->link_matrix[start_station->id][start_next_station->id];
                 assert(front_link);
 
+                this->troons.back().state_timestamp = tick;
                 front_link->waiting_platform.push(&this->troons.back());
 
                 left_to_spawn--;
@@ -285,6 +286,7 @@ void Network::simulate() {
                     Link *end_link = this->link_matrix[end_station->id][end_next_station->id];
                     assert(end_link);
 
+                    this->troons.back().state_timestamp = tick;
                     end_link->waiting_platform.push(&this->troons.back());
 
                     left_to_spawn--;
@@ -298,15 +300,10 @@ void Network::simulate() {
         spawn_troons(Troon::Line::yellow);
         spawn_troons(Troon::Line::blue);
 
-        // Increment ticks
-        for (auto& troon : this->troons) {
-            troon.ticks_in_state++;
-        }
-
         // Transit on links
         for (auto& link : this->links) {
             Troon *troon = link.in_transit;
-            if (troon && troon->ticks_in_state > link.length) {
+            if (troon && tick - troon->state_timestamp >= link.length) {
 
                 // Switch direction if terminal station has been reached
                 if (troon->direction == Troon::Direction::forward && !link.to->forward_stations[troon->line]) {
@@ -318,10 +315,10 @@ void Network::simulate() {
 
                 link.in_transit = nullptr;
                 troon->state = Troon::State::waiting_platform;
-                troon->ticks_in_state = 1;
+                troon->state_timestamp = tick;
                 troon->on_station = link.to;
 
-                // Add to waiting aread of next link
+                // Add to waiting area of next link
                 Station *new_from = link.to;
                 Station *new_to;
                 if (troon->direction == Troon::Direction::forward) {
@@ -336,25 +333,12 @@ void Network::simulate() {
             }
         }
 
-        // Sort waiting area based on time and id
-        /*
-        for (auto& link : this->links) {
-            std::sort(link.waiting_platform.begin(), link.waiting_platform.end(), [](Troon *troon1, Troon *troon2) {
-                if (troon1->ticks_in_state != troon2->ticks_in_state) {
-                    return troon1->ticks_in_state > troon2->ticks_in_state;
-                }
-
-                return troon1->id < troon2->id;
-            });
-        }
-        */
-
         // Move from platform to link
         for (auto& link : this->links) {
             if (link.on_platform) {
                 if (link.on_platform->state == Troon::State::waiting_transit) {
                     link.on_platform->state = Troon::State::in_transit;
-                    link.on_platform->ticks_in_state = 1;
+                    link.on_platform->state_timestamp = tick;
                     link.in_transit = link.on_platform;
                     link.on_platform = nullptr;
                 }
@@ -364,9 +348,9 @@ void Network::simulate() {
                         // letting passengers on
                         size_t wait_time = link.from->popularity + 2;
 
-                        if (link.on_platform->ticks_in_state >= wait_time) {
+                        if (tick - link.on_platform->state_timestamp + 1 >= wait_time) {
                             link.on_platform->state = Troon::State::waiting_transit;
-                            link.on_platform->ticks_in_state = 1;
+                            link.on_platform->state_timestamp = tick;
                         }
                     }
                 }
@@ -380,7 +364,7 @@ void Network::simulate() {
                 link.waiting_platform.pop();
 
                 link.on_platform = first_troon;
-                first_troon->ticks_in_state = 1;
+                first_troon->state_timestamp = tick;
                 first_troon->state = Troon::State::on_platform;
             }
         }

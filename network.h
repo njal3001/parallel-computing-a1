@@ -44,7 +44,7 @@ struct Troon {
     size_t id;
     Direction direction;
     State state;
-    size_t ticks_in_state;
+    size_t state_timestamp;
     Line line;
     const Station* on_station;
 
@@ -55,12 +55,10 @@ struct Troon {
     friend std::ostream& operator<<(std::ostream& os, const Troon::Line& line);
 };
 
-// C++ Priority queue by default is a max heap, so if a->ticks_in_state < b->ticks_in_state,
-// b will be popped out before a
 struct CompareTroon {
     bool operator()(const Troon* a, const Troon* b) {
-        if (a->ticks_in_state != b->ticks_in_state) {
-            return a->ticks_in_state < b->ticks_in_state;
+        if (a->state_timestamp != b->state_timestamp) {
+            return a->state_timestamp > b->state_timestamp;
         }
         return a->id > b->id;
     }
