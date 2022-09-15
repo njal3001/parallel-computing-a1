@@ -301,7 +301,9 @@ void Network::simulate() {
         spawn_troons(Troon::Line::blue);
 
         // Transit on links
-        for (auto& link : this->links) {
+        #pragma omp parallel for
+        for (size_t i = 0; i < links.size(); i++) {
+            Link& link = links[i];
             Troon *troon = link.in_transit;
             if (troon && tick - troon->state_timestamp >= link.length) {
 
@@ -327,14 +329,20 @@ void Network::simulate() {
                     new_to = link.to->backward_stations[troon->line];
                 }
 
-                Link *new_link = this->link_matrix[new_from->id][new_to->id];
-                new_link->waiting_platform.push(troon);
+                Link *new_link = link_matrix[new_from->id][new_to->id];
 
+                // NOTE: Might be possible to get rid of this
+                // critical section if we structure the code
+                // differently
+                #pragma omp critical
+                new_link->waiting_platform.push(troon);
             }
         }
 
         // Move from platform to link
-        for (auto& link : this->links) {
+        #pragma omp parallel for
+        for (size_t i = 0; i < links.size(); i++) {
+            Link& link = links[i];
             if (link.on_platform) {
                 if (link.on_platform->state == Troon::State::waiting_transit) {
                     link.on_platform->state = Troon::State::in_transit;
@@ -358,7 +366,9 @@ void Network::simulate() {
         }
 
         // Move from watiting area to platform
-        for (auto& link : this->links) {
+        #pragma omp parallel for
+        for (size_t i = 0; i < links.size(); i++) {
+            Link& link = links[i];
             if (!link.on_platform && !link.waiting_platform.empty()) {
                 Troon* first_troon = link.waiting_platform.top();
                 link.waiting_platform.pop();
@@ -382,6 +392,10 @@ void Network::simulate() {
         }
 #else
         if (this->ticks - tick <= this->num_lines) {
+            // NOTE: Not sure if it matters,
+            // but we could optimize this by
+            // just keeping the troon container sorted.
+            // Could use a priority queue for example.
             std::vector<std::string> v{};
             for (auto& troon: troons) {
                 auto s = to_string(troon);
@@ -392,19 +406,6 @@ void Network::simulate() {
             for (const auto& element: v) {
                 std::cout << element << " ";
             }
-
-            /* for (auto& troon : troons) {
-                if (troon.line == Troon::Line::blue)
-                    std::cout << troon << " ";
-            }
-            for (auto& troon : troons) {
-                if (troon.line == Troon::Line::green)
-                    std::cout << troon << " ";
-            }
-            for (auto& troon : troons) {
-                if (troon.line == Troon::Line::yellow)
-                    std::cout << troon << " ";
-            } */
 
             std::cout << '\n';
         }
