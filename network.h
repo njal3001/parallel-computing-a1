@@ -2,8 +2,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include <deque>
 #include <queue>
+#include <omp.h>
 
 using adjacency_matrix = std::vector<std::vector<size_t>>;
 
@@ -71,8 +71,10 @@ struct Link {
     std::priority_queue<Troon*, std::vector<Troon*>, CompareTroon> waiting_platform{};
     Troon* on_platform;
     Troon* in_transit;
+    omp_lock_t lock;
 
     Link(Station *from, Station *to, size_t length);
+    ~Link();
 
     friend std::ostream& operator<<(std::ostream& os, const Link& link);
 };

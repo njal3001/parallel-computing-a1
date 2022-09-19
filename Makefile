@@ -20,4 +20,5 @@ clean:
 	$(RM) *.o troons
 
 debug: main.cc network.cc
-	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -D DEBUG -o troons $^
+	# $(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -D DEBUG -o troons $^
+	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -o troons $^

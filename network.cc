@@ -58,6 +58,12 @@ Link::Link(Station *from, Station *to, size_t length) {
 
     this->on_platform = nullptr;
     this->in_transit = nullptr;
+
+    omp_init_lock(&this->lock);
+}
+
+Link::~Link() {
+    omp_destroy_lock(&this->lock);
 }
 
 std::ostream& operator<<(std::ostream& os, const Link& link) {
@@ -134,32 +140,32 @@ std::ostream& operator<<(std::ostream& os, const Troon& troon) {
     }
 
 
-#ifdef DEBUG
-    switch (troon.state) {
-        case Troon::State::waiting_platform:
-        os << "  (Waiting platform";
-        break;
-        case Troon::State::on_platform:
-            os << "  (On platform";
-            break;
-        case Troon::State::waiting_transit:
-            os << "  (Waiting transit";
-            break;
-        case Troon::State::in_transit:
-            os << "  (In transit";
-            break;
-    }
-
-    os << ", ts" << troon.state_timestamp << ", ";
-
-    if (troon.direction == Troon::Direction::forward) {
-        os << "forward)";
-    } else {
-        os << "backward)";
-    }
-
-#endif
-
+// #ifdef DEBUG
+//     switch (troon.state) {
+//         case Troon::State::waiting_platform:
+//         os << "  (Waiting platform";
+//         break;
+//         case Troon::State::on_platform:
+//             os << "  (On platform";
+//             break;
+//         case Troon::State::waiting_transit:
+//             os << "  (Waiting transit";
+//             break;
+//         case Troon::State::in_transit:
+//             os << "  (In transit";
+//             break;
+//     }
+//
+//     os << ", ts" << troon.state_timestamp << ", ";
+//
+//     if (troon.direction == Troon::Direction::forward) {
+//         os << "forward)";
+//     } else {
+//         os << "backward)";
+//     }
+//
+// #endif
+//
     return os;
 }
 
@@ -191,9 +197,9 @@ Network::Network(size_t num_stations,
     }
 
     // Create links
-    for (auto& row : this->link_matrix) {
-        std::fill(row.begin(), row.end(), nullptr);
-    }
+    // for (auto& row : this->link_matrix) {
+    //     std::fill(row.begin(), row.end(), nullptr);
+    // }
 
     for (size_t i = 0; i < num_stations; i++) {
         for (size_t j = 0; j < num_stations; j++) {
@@ -257,6 +263,7 @@ Network::Network(size_t num_stations,
 
 void Network::simulate() {
     for (size_t tick = 0; tick < this->ticks; tick++) {
+
         // Spawn troons
         auto spawn_troons = [this, tick](Troon::Line line) {
             size_t left_to_spawn = this->num_trains_to_spawn[line];
@@ -300,49 +307,47 @@ void Network::simulate() {
         spawn_troons(Troon::Line::yellow);
         spawn_troons(Troon::Line::blue);
 
-        // Transit on links
         #pragma omp parallel for
-        for (size_t i = 0; i < links.size(); i++) {
-            Link& link = links[i];
-            Troon *troon = link.in_transit;
-            if (troon && tick - troon->state_timestamp >= link.length) {
+        for (size_t i = 0; i < this->links.size(); i++) {
+            Link& link = this->links[i];
+            // Trasit on links
+            {
+                Troon *troon = link.in_transit;
+                if (troon && tick - troon->state_timestamp >= link.length) {
+                    // Switch direction if terminal station has been reached
+                    if (troon->direction == Troon::Direction::forward
+                            && !link.to->forward_stations[troon->line]) {
+                        troon->direction = Troon::Direction::backward;
+                    }
+                    else if (troon->direction == Troon::Direction::backward
+                            && !link.to->backward_stations[troon->line]) {
+                        troon->direction = Troon::Direction::forward;
+                    }
 
-                // Switch direction if terminal station has been reached
-                if (troon->direction == Troon::Direction::forward && !link.to->forward_stations[troon->line]) {
-                    troon->direction = Troon::Direction::backward;
+                    link.in_transit = nullptr;
+                    troon->state = Troon::State::waiting_platform;
+                    troon->state_timestamp = tick;
+                    troon->on_station = link.to;
+
+                    // Add to waiting area of next link
+                    Station *new_from = link.to;
+                    Station *new_to;
+                    if (troon->direction == Troon::Direction::forward) {
+                        new_to = link.to->forward_stations[troon->line];
+                    } else {
+                        new_to = link.to->backward_stations[troon->line];
+                    }
+
+                    Link *new_link = link_matrix[new_from->id][new_to->id];
+
+
+                    omp_set_lock(&new_link->lock);
+                    new_link->waiting_platform.push(troon);
+                    omp_unset_lock(&new_link->lock);
                 }
-                else if (troon->direction == Troon::Direction::backward && !link.to->backward_stations[troon->line]) {
-                    troon->direction = Troon::Direction::forward;
-                }
-
-                link.in_transit = nullptr;
-                troon->state = Troon::State::waiting_platform;
-                troon->state_timestamp = tick;
-                troon->on_station = link.to;
-
-                // Add to waiting area of next link
-                Station *new_from = link.to;
-                Station *new_to;
-                if (troon->direction == Troon::Direction::forward) {
-                    new_to = link.to->forward_stations[troon->line];
-                } else {
-                    new_to = link.to->backward_stations[troon->line];
-                }
-
-                Link *new_link = link_matrix[new_from->id][new_to->id];
-
-                // NOTE: Might be possible to get rid of this
-                // critical section if we structure the code
-                // differently
-                #pragma omp critical
-                new_link->waiting_platform.push(troon);
             }
-        }
 
-        // Move from platform to link
-        #pragma omp parallel for
-        for (size_t i = 0; i < links.size(); i++) {
-            Link& link = links[i];
+            // Move from platform to link
             if (link.on_platform) {
                 if (link.on_platform->state == Troon::State::waiting_transit) {
                     link.on_platform->state = Troon::State::in_transit;
@@ -363,21 +368,104 @@ void Network::simulate() {
                     }
                 }
             }
-        }
 
-        // Move from watiting area to platform
-        #pragma omp parallel for
-        for (size_t i = 0; i < links.size(); i++) {
-            Link& link = links[i];
+            // Move from waiting area to platform
+            // TODO: Wait for troons to arrive if needed
             if (!link.on_platform && !link.waiting_platform.empty()) {
+                omp_set_lock(&link.lock);
                 Troon* first_troon = link.waiting_platform.top();
                 link.waiting_platform.pop();
+                omp_unset_lock(&link.lock);
 
                 link.on_platform = first_troon;
                 first_troon->state_timestamp = tick;
                 first_troon->state = Troon::State::on_platform;
             }
         }
+
+
+        // Transit on links
+        // #pragma omp parallel for
+        // for (size_t i = 0; i < links.size(); i++) {
+        //     Link& link = links[i];
+        //     Troon *troon = link.in_transit;
+        //     if (troon && tick - troon->state_timestamp >= link.length) {
+        //
+        //         // Switch direction if terminal station has been reached
+        //         if (troon->direction == Troon::Direction::forward
+        //                 && !link.to->forward_stations[troon->line]) {
+        //             troon->direction = Troon::Direction::backward;
+        //         }
+        //         else if (troon->direction == Troon::Direction::backward
+        //                 && !link.to->backward_stations[troon->line]) {
+        //             troon->direction = Troon::Direction::forward;
+        //         }
+        //
+        //         link.in_transit = nullptr;
+        //         troon->state = Troon::State::waiting_platform;
+        //         troon->state_timestamp = tick;
+        //         troon->on_station = link.to;
+        //
+        //         // Add to waiting area of next link
+        //         Station *new_from = link.to;
+        //         Station *new_to;
+        //         if (troon->direction == Troon::Direction::forward) {
+        //             new_to = link.to->forward_stations[troon->line];
+        //         } else {
+        //             new_to = link.to->backward_stations[troon->line];
+        //         }
+        //
+        //         Link *new_link = link_matrix[new_from->id][new_to->id];
+        //
+        //         // NOTE: Might be possible to get rid of this
+        //         // critical section if we structure the code
+        //         // differently
+        //         // #pragma omp critical
+        //         omp_set_lock(&new_link->lock);
+        //         new_link->waiting_platform.push(troon);
+        //         omp_unset_lock(&new_link->lock);
+        //     }
+        // }
+        //
+        // // Move from platform to link
+        // #pragma omp parallel for
+        // for (size_t i = 0; i < links.size(); i++) {
+        //     Link& link = links[i];
+        //     if (link.on_platform) {
+        //         if (link.on_platform->state == Troon::State::waiting_transit) {
+        //             link.on_platform->state = Troon::State::in_transit;
+        //             link.on_platform->state_timestamp = tick;
+        //             link.in_transit = link.on_platform;
+        //             link.on_platform = nullptr;
+        //         }
+        //         else {
+        //             if (!link.in_transit) {
+        //                 // Check if troon is finished with opening and closing doors and
+        //                 // letting passengers on
+        //                 size_t wait_time = link.from->popularity + 2;
+        //
+        //                 if (tick - link.on_platform->state_timestamp + 1 >= wait_time) {
+        //                     link.on_platform->state = Troon::State::waiting_transit;
+        //                     link.on_platform->state_timestamp = tick;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        //
+        // // Move from watiting area to platform
+        // #pragma omp parallel for
+        // for (size_t i = 0; i < links.size(); i++) {
+        //     Link& link = links[i];
+        //     if (!link.on_platform && !link.waiting_platform.empty()) {
+        //         Troon* first_troon = link.waiting_platform.top();
+        //         link.waiting_platform.pop();
+        //
+        //         link.on_platform = first_troon;
+        //         first_troon->state_timestamp = tick;
+        //         first_troon->state = Troon::State::on_platform;
+        //     }
+        // }
 
 #ifdef DEBUG
         std::cout << "\nState at tick " << tick << "\n\n";
