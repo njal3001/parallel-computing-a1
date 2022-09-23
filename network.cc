@@ -410,12 +410,6 @@ void Network::simulate() {
                     }
                 }
             }
-        }
-        #pragma omp parallel for
-        for (size_t i = 0; i < this->links.size(); i++) {
-            Link& link = this->links[i];
-            // Move from waiting area to platform
-            // TODO: Wait for troons to arrive if needed
             if (!link.on_platform && !link.waiting_platform.empty()) {
                 omp_set_lock(&link.lock);
                 Troon* first_troon = link.waiting_platform.top();
