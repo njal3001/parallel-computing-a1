@@ -19,7 +19,7 @@ cp /home/$USER/$EXEC /home/$USER/$INPUT /nfs/home/$USER
 export EXEC
 export INPUT
 
-jobid=$(sbatch --partition $ARCH --parsable --wait ./troons.sh)
+jobid=$(sbatch --partition $ARCH --parsable ./troons.sh)
 
 ln -nsf /nfs/home/$USER/$EXEC-$jobid.log ./$EXEC-latest.log
 # cp /nfs/home/$USER/perf.data ./perf.data
