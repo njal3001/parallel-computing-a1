@@ -10,18 +10,6 @@ using std::string;
 using std::vector;
 using std::make_pair;
 
-// long long wall_clock_time() {
-// #ifdef LINUX
-//     struct timespec tp;
-//     clock_gettime(CLOCK_REALTIME, &tp);
-//     return (long long)(tp.tv_nsec + (long long)tp.tv_sec * 1000000000ll);
-// #else
-//     struct timeval tv;
-//     gettimeofday(&tv, NULL);
-//     return (long long)(tv.tv_usec * 1000 + (long long)tv.tv_sec * 1000000000ll);
-// #endif
-// }
-
 void simulate(size_t num_stations,
               const vector<string>& station_names,
               const std::vector<size_t>& popularities,
@@ -169,7 +157,5 @@ int main(int argc, char const* argv[]) {
   simulate(S, station_names, popularities, mat, green_station_names,
            yellow_station_names, blue_station_names, N, g, y, b, num_lines);
 
-  // long long after = wall_clock_time();
-  // fprintf(stderr, "Time taken: %1.2f seconds\n", ((float)(after - before)) / 1000000000);
   return 0;
 }

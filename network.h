@@ -68,7 +68,7 @@ struct Link {
     Station *from;
     Station *to;
     size_t length;
-    std::priority_queue<Troon*, std::vector<Troon*>, CompareTroon> waiting_platform{};
+    std::priority_queue<Troon*, std::vector<Troon*>, CompareTroon> waiting_platform;
     Troon* on_platform;
     Troon* in_transit;
     omp_lock_t lock;
@@ -89,6 +89,7 @@ private:
 
     size_t ticks;
     size_t num_trains_to_spawn[3];
+    size_t num_stations;
     size_t num_lines;
     std::vector<Link> links;
     std::vector<std::vector<Link*>> link_matrix;
@@ -105,4 +106,8 @@ public:
               size_t num_blue_trains, size_t num_lines);
 
     void simulate();
+
+private:
+    void connect_stations(Troon::Line line, const std::vector<std::string>& line_names);
+    void spawn_troons(size_t tick, Troon::Line line);
 };
