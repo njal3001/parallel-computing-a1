@@ -389,7 +389,7 @@ void Network::simulate() {
                 omp_unset_lock(&new_link->lock);
             }
         }
-
+        
         #pragma omp parallel for
         for (size_t i = 0; i < this->links.size(); i++) {
             Link& link = this->links[i];
@@ -425,6 +425,49 @@ void Network::simulate() {
                 first_troon->state = Troon::State::on_platform;
             }
         }
+        
+
+        // Uncomment this block to use 3 parallel for directive for performance measurements.
+        // Please comment out the above parallel for directive for correct results
+        /*#pragma omp parallel for
+        for (size_t i = 0; i < this->links.size(); i++) {
+            Link& link = this->links[i];
+
+            // Move from platform to link
+            if (link.on_platform) {
+                if (link.on_platform->state == Troon::State::waiting_transit) {
+                    link.on_platform->state = Troon::State::in_transit;
+                    link.on_platform->state_timestamp = tick;
+                    link.in_transit = link.on_platform;
+                    link.on_platform = nullptr;
+                }
+                else {
+                    if (!link.in_transit) {
+                        // Check if troon is finished with opening and closing doors and
+                        // letting passengers on
+                        size_t wait_time = link.from->popularity + 2;
+
+                        if (tick - link.on_platform->state_timestamp + 1 >= wait_time) {
+                            link.on_platform->state = Troon::State::waiting_transit;
+                            link.on_platform->state_timestamp = tick;
+                        }
+                    }
+                }
+            }
+        }
+        #pragma omp parallel for
+        for (size_t i = 0; i < this->links.size(); i++) {
+            Link& link = this->links[i];
+            // Move from waiting area to platform
+            if (!link.on_platform && !link.waiting_platform.empty()) {
+                Troon* first_troon = link.waiting_platform.top();
+                link.waiting_platform.pop();
+
+                link.on_platform = first_troon;
+                first_troon->state_timestamp = tick;
+                first_troon->state = Troon::State::on_platform;
+            }
+        }*/
 
 #ifdef DEBUG
         std::cout << "\nState at tick " << tick << "\n\n";
