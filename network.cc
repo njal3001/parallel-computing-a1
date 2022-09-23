@@ -220,6 +220,58 @@ Network::Network(size_t num_stations,
     this->connect_stations(Troon::Line::yellow, yellow_station_names);
     this->connect_stations(Troon::Line::blue, blue_station_names);
 
+    // Determine print order to avoid sorting strings
+    std::vector<std::string> green_train_ids, yellow_train_ids, blue_train_ids;
+    green_train_ids.reserve(num_green_trains);
+    yellow_train_ids.reserve(num_yellow_trains);
+    blue_train_ids.reserve(num_blue_trains);
+    this->print_order.reserve(num_green_trains + num_blue_trains + num_yellow_trains);
+    size_t curr = 0;
+    while (num_green_trains > 0 || num_yellow_trains > 0 || num_blue_trains > 0) {
+        if (num_green_trains > 0) {
+            num_green_trains--;
+            green_train_ids.push_back(std::to_string(curr));
+            curr++;
+        }
+        if (num_green_trains > 0) {
+            num_green_trains--;
+            green_train_ids.push_back(std::to_string(curr));
+            curr++;
+        }
+        if (num_yellow_trains > 0) {
+            num_yellow_trains--;
+            yellow_train_ids.push_back(std::to_string(curr));
+            curr++;
+        }
+        if (num_yellow_trains > 0) {
+            num_yellow_trains--;
+            yellow_train_ids.push_back(std::to_string(curr));
+            curr++;
+        }
+        if (num_blue_trains > 0) {
+            num_blue_trains--;
+            blue_train_ids.push_back(std::to_string(curr));
+            curr++;
+        }
+        if (num_blue_trains > 0) {
+            num_blue_trains--;
+            blue_train_ids.push_back(std::to_string(curr));
+            curr++;
+        }
+    }
+    std::sort(blue_train_ids.begin(), blue_train_ids.end());
+    std::sort(green_train_ids.begin(), green_train_ids.end());
+    std::sort(yellow_train_ids.begin(), yellow_train_ids.end());
+    for (const auto &idx : blue_train_ids) {
+        this->print_order.push_back(std::stoi(idx));
+    }
+    for (const auto &idx : green_train_ids) {
+        this->print_order.push_back(std::stoi(idx));
+    }
+    for (const auto &idx : yellow_train_ids) {
+        this->print_order.push_back(std::stoi(idx));
+    }
+
 #ifdef DEBUG
     std::cout << "Stations:\n";
     for (const auto& s : this->stations) {
@@ -363,7 +415,6 @@ void Network::simulate() {
                     }
                 }
             }
-
             // Move from waiting area to platform
             if (!link.on_platform && !link.waiting_platform.empty()) {
                 Troon* first_troon = link.waiting_platform.top();
@@ -388,21 +439,11 @@ void Network::simulate() {
         }
 #else
         if (this->ticks - tick <= this->num_lines) {
-            // NOTE: Not sure if it matters,
-            // but we could optimize this by
-            // just keeping the troon container sorted.
-            // Could use a priority queue for example.
-            std::vector<std::string> v{};
-            for (auto& troon: troons) {
-                auto s = to_string(troon);
-                v.emplace_back(s);
-            }
-            sort(v.begin(), v.end());
             std::cout << tick << ": ";
-            for (const auto& element: v) {
-                std::cout << element << " ";
+            for (const auto& idx: this->print_order) {
+                if (idx >= this->troons.size()) continue;
+                std::cout << this->troons[idx] << " ";
             }
-
             std::cout << '\n';
         }
 #endif

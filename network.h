@@ -93,6 +93,7 @@ private:
     size_t num_lines;
     std::vector<Link> links;
     std::vector<std::vector<Link*>> link_matrix;
+    std::vector<size_t> print_order;
 
 public:
     Network(size_t num_stations,
