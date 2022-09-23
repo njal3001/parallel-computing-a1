@@ -27,7 +27,7 @@ class Station:
         return count
 
 # Command line arguments
-assert(len(sys.argv) == 7)
+assert(len(sys.argv) == 8)
 
 NUM_STATIONS = int(sys.argv[1])
 NUM_TICKS = int(sys.argv[2])
@@ -35,6 +35,7 @@ NUM_GREEN_TROONS = int(sys.argv[3])
 NUM_YELLOW_TROONS = int(sys.argv[4])
 NUM_BLUE_TROONS = int(sys.argv[5])
 NUM_LINE_OUTPUT = int(sys.argv[6])
+SHARE_PROBABILITY = float(sys.argv[7])
 
 def number_to_ascii_id(num):
     num_str = str(num)
@@ -54,7 +55,13 @@ line_stations = [[] for i in range(NUM_LINES)]
 for line in range(NUM_LINES):
     for station in stations:
         r = random.uniform(0, 1)
-        threshold = (1.0 / float(NUM_LINES)) * (1 + line - station.line_count())
+
+        if station.line_count() == 0:
+            threshold = max(SHARE_PROBABILITY,
+                    (1.0 / float(NUM_LINES)) * (1 + line - station.line_count()))
+        else:
+            threshold = SHARE_PROBABILITY
+
 
         # NOTE: Always add first and last station to guarantee path
         if r < threshold or station.id == 0 or station.id == len(stations) - 1:
