@@ -19,7 +19,7 @@ sbcast /nfs/home/$USER/$INPUT /home/$USER/$INPUT
 echo ""
 echo "Output:"
 
-perf stat -r 5 -e cache-references,cache-misses,cycles,instructions,branches,faults,migrations,duration_time /home/$USER/$EXEC $INPUT > /dev/null
+perf stat -r 5 -e cache-references,cache-misses,cycles,instructions,branches,faults,migrations,duration_time -- /home/$USER/$EXEC $INPUT > /dev/null
 # perf record -F 99 -- /home/$USER/$EXEC $INPUT > /dev/null
 # cp perf.data /nfs/home/$USER/
 
