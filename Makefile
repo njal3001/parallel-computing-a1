@@ -1,19 +1,19 @@
 CXX=g++
-CXXFLAGS:=-Wall -Werror -Wextra -pedantic -std=c++17 -fopenmp
+# CXXFLAGS:=-Wall -Werror -Wextra -pedantic -std=c++17 -fopenmp
+CXXFLAGS:=-Wall -Wextra -pedantic -std=c++17 -fopenmp
 RELEASEFLAGS:=-O3
+# RELEASEFLAGS:=-g3
 DEBUGFLAGS:=-g
 
 .PHONY: all clean
 all: submission
 
-submission: main.o
+submission: main.cc network.cc
 	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -o troons $^
-
-main.o: main.cc
-	$(CXX) $(CXXFLAGS) $(RELEASEFLAGS) -c $^
 
 clean:
 	$(RM) *.o troons
 
-debug: main.cc
-	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -D DEBUG -o troons main.cc
+debug: main.cc network.cc network.h
+	# $(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -D DEBUG -o troons $^
+	$(CXX) $(CXXFLAGS) $(DEBUGFLAGS) -o troons $^
